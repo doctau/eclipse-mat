@@ -1,0 +1,4 @@
+Things currently hard-coded:
+* executable path to /bin/bash
+* library lookup to /use/lib64
+* main_arena variable offset to -0x3BB000

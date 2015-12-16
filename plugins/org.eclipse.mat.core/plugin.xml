@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.4"?>
+<plugin>
+   <extension
+         id="core"
+         name="%parser.name"
+         point="org.eclipse.mat.parser.parser">
+      <parser
+            name="%parser.filetype.name"
+            fileExtension="core"
+            indexBuilder="org.eclipse.mat.core.plugin.CoreIndexBuilder"
+            objectReader="org.eclipse.mat.core.plugin.CoreObjectReader">
+      </parser>
+   </extension>
+</plugin>
