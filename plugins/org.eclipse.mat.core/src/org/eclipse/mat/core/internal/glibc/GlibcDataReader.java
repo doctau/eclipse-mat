@@ -1,10 +1,10 @@
-package org.eclipse.mat.core.internal.glib;
+package org.eclipse.mat.core.internal.glibc;
 
 import org.eclipse.cdt.core.IAddress;
 import org.eclipse.mat.core.corefile.CoreReader;
 import org.eclipse.mat.core.corefile.CoreReaderFactory;
-import org.eclipse.mat.core.internal.glibstructures.MallocChunk;
-import org.eclipse.mat.core.internal.glibstructures.MallocState;
+import org.eclipse.mat.core.internal.glibc.structures.MallocChunk;
+import org.eclipse.mat.core.internal.glibc.structures.MallocState;
 import org.eclipse.mat.core.plugin.CorePlugin;
 
 public class GlibcDataReader {

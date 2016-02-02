@@ -1,11 +1,11 @@
-package org.eclipse.mat.core.internal.glib;
+package org.eclipse.mat.core.internal.glibc;
 
 import java.util.Iterator;
 
 import org.eclipse.cdt.core.IAddress;
 import org.eclipse.mat.core.corefile.CoreReader;
 import org.eclipse.mat.core.corefile.CoreReaderFactory;
-import org.eclipse.mat.core.internal.glibstructures.MallocState;
+import org.eclipse.mat.core.internal.glibc.structures.MallocState;
 
 public class ArenaIterator implements Iterator<MallocState>
 {

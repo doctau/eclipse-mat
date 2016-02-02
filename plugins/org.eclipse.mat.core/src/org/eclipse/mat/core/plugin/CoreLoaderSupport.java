@@ -24,6 +24,13 @@ import org.eclipse.mat.core.corefile.CoreReaderFactory;
 import org.eclipse.mat.core.corefile.CoreReaderFactoryImpl;
 import org.eclipse.mat.core.corefile.MemorySegmentMapping;
 import org.eclipse.mat.core.corefile.NoteEntry;
+import org.eclipse.mat.core.corefile.PrStatusNote;
+import org.eclipse.mat.core.corefile.PrpsInfoNote;
+import org.eclipse.mat.core.internal.core.Timeval;
+import org.eclipse.swt.SWT;
+import org.eclipse.swt.widgets.FileDialog;
+import org.eclipse.swt.widgets.Shell;
+import org.eclipse.ui.PlatformUI;
 
 public class CoreLoaderSupport
 {
@@ -59,8 +66,161 @@ public class CoreLoaderSupport
         return (IBinaryShared) parser.getBinary(path).getAdapter(IBinaryShared.class);
     }
 
-    protected static String findExecutable(IBinaryObject binary) {
-        return "/usr/libexec/gvfsd"; //"/bin/bash"; // FIXME!
+    protected static String findExecutable(IBinaryObject core) throws IOException {
+        Elf coreElf = core.getAdapter(Elf.class);
+        boolean isle = coreElf.getAttributes().isLittleEndian();
+        String executableName = null;
+        for (NoteEntry n: getNoteEntries(core)) {
+            if (n.noteType == NoteEntry.NT_PRPSINFO && Arrays.equals(n.noteName, NoteEntry.NT_NAME_CORE)) {
+                PrpsInfoNote prpsNote = parsePrpsInfoNote(n.noteDesc, isle);
+                executableName = new String(prpsNote.fname);
+                break;
+            }
+        }
+
+        final String title = executableName != null ? "Please select executable '" + executableName + "' for core file" : "Please select executable for core file";
+        class Holder { public String result;};
+        final Holder holder = new Holder();
+        PlatformUI.getWorkbench().getDisplay().syncExec(new Runnable() {
+            public void run() {
+                Shell shell = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell();
+                FileDialog dialog = new FileDialog(shell, SWT.OPEN);
+                dialog.setText(title);
+                holder.result = dialog.open();
+            }
+        });
+        if (holder.result != null)
+            return holder.result;
+        else
+            throw new IOException("Executable selection cancelled");
+    }
+    
+    private static PrpsInfoNote parsePrpsInfoNote(byte[] noteDesc, boolean isle) throws IOException {
+        boolean bit64 = true; // FIXME
+        
+        PrpsInfoNote info = new PrpsInfoNote();
+        info.state = noteDesc[0];
+        info.stateName = noteDesc[1];
+        info.zombie = noteDesc[2];
+        info.nice = noteDesc[3];
+        info.flags = ByteUtils.makeLong(noteDesc, 4, isle);
+        
+        final int next;
+        if (bit64) {
+            info.uid = (int) ByteUtils.makeInt(noteDesc, 12, isle);
+            info.gid = (int) ByteUtils.makeInt(noteDesc, 16, isle);
+            next = 20;
+        } else {
+            info.uid = ByteUtils.makeShort(noteDesc, 12, isle);
+            info.gid = ByteUtils.makeShort(noteDesc, 14, isle);
+            next = 16;
+        }
+        
+        info.pid = (int) ByteUtils.makeInt(noteDesc, next, isle);
+        info.ppid = (int) ByteUtils.makeInt(noteDesc, next + 4, isle);
+        info.pgrp = (int) ByteUtils.makeInt(noteDesc, next + 8, isle);
+        info.sid = (int) ByteUtils.makeInt(noteDesc, next + 16, isle);
+        info.fname = Arrays.copyOfRange(noteDesc, next + 20, next + 36);
+        info.args = Arrays.copyOfRange(noteDesc, next + 36, noteDesc.length);
+        
+        return info;
+    }
+    
+    public static PrStatusNote parsePrStatusNote(byte[] noteDesc, boolean isle) throws IOException {
+        PrStatusNote status = new PrStatusNote();
+        
+        // read elfSigInf
+        status.signalSigNo = ByteUtils.makeInt(noteDesc, 0, isle);
+        status.signalSigCode = ByteUtils.makeInt(noteDesc, 4, isle);
+        status.signalSigErrno = ByteUtils.makeInt(noteDesc, 8, isle);
+        status.currentSignal = ByteUtils.makeShort(noteDesc, 12, isle); // 2 bytes padding
+        status.pendingSignals = ByteUtils.makeInt(noteDesc, 16, isle);
+        status.heldSignals = ByteUtils.makeInt(noteDesc, 20, isle);
+        
+        status.pid = ByteUtils.makeInt(noteDesc, 24, isle); // maybe 2 bytes on 32 bit?
+        status.ppid = ByteUtils.makeInt(noteDesc, 28, isle); // maybe 2 bytes on 32 bit?
+        status.pgrp = ByteUtils.makeInt(noteDesc, 32, isle); // maybe 2 bytes on 32 bit?
+        status.sid = ByteUtils.makeInt(noteDesc, 36, isle); // maybe 2 bytes on 32 bit?
+
+        int next = 36;
+        status.userTime = parseTimeval(Arrays.copyOfRange(noteDesc, next, next + 16), isle);
+        next += 16;
+        status.systemTime = parseTimeval(Arrays.copyOfRange(noteDesc, next, next + 16), isle);
+        next += 16;
+        status.cumulativeUserTime = parseTimeval(Arrays.copyOfRange(noteDesc, next, next + 16), isle);
+        next += 16;
+        status.cumulativeSystemTime = parseTimeval(Arrays.copyOfRange(noteDesc, next, next + 16), isle);
+        next += 16;
+        
+        // read general purpose registers
+        // 32/64 bit depending on arch.
+        /* 64 bit
+   __extension__ unsigned long long int r15;
+  __extension__ unsigned long long int r14;
+  __extension__ unsigned long long int r13;
+  __extension__ unsigned long long int r12;
+  __extension__ unsigned long long int rbp;
+  __extension__ unsigned long long int rbx;
+  __extension__ unsigned long long int r11;
+  __extension__ unsigned long long int r10;
+  __extension__ unsigned long long int r9;
+  __extension__ unsigned long long int r8;
+  __extension__ unsigned long long int rax;
+  __extension__ unsigned long long int rcx;
+  __extension__ unsigned long long int rdx;
+  __extension__ unsigned long long int rsi;
+  __extension__ unsigned long long int rdi;
+  __extension__ unsigned long long int orig_rax;
+  __extension__ unsigned long long int rip;
+  __extension__ unsigned long long int cs;
+  __extension__ unsigned long long int eflags;
+  __extension__ unsigned long long int rsp;
+  __extension__ unsigned long long int ss;
+  __extension__ unsigned long long int fs_base;
+  __extension__ unsigned long long int gs_base;
+  __extension__ unsigned long long int ds;
+  __extension__ unsigned long long int es;
+  __extension__ unsigned long long int fs;
+  __extension__ unsigned long long int gs;
+      */
+        status.registerSet = new Long[27];
+        for (int i = 0; i < status.registerSet.length; i++) {
+            status.registerSet[i] = ByteUtils.makeLong(noteDesc, next, isle); // maybe 2 bytes on 32 bit?
+            next += 8;   
+        }
+        /*
+         * 32 bit
+         struct user_regs_struct
+{
+  long int ebx;
+  long int ecx;
+  long int edx;
+  long int esi;
+  long int edi;
+  long int ebp;
+  long int eax;
+  long int xds;
+  long int xes;
+  long int xfs;
+  long int xgs;
+  long int orig_eax;
+  long int eip;
+  long int xcs;
+  long int eflags;
+  long int esp;
+  long int xss;
+};
+*/
+        status.fpValid = ByteUtils.makeInt(noteDesc, next, isle);
+        
+        return status;
+    }
+
+    private static Timeval parseTimeval(byte[] bytes, boolean isle)
+    {
+        if (bytes.length != 16)
+            throw new IllegalArgumentException();
+        return new Timeval();
     }
 
     protected static CoreReaderFactory setupCoreReaderFactory(CoreInfo coreInfo) throws IOException {

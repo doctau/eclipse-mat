@@ -8,10 +8,11 @@ Require-Bundle: org.eclipse.mat.parser;bundle-version="1.0.0",
  org.eclipse.core.runtime;bundle-version="3.3.100",
  org.eclipse.core.commands;bundle-version="3.3.100",
  org.eclipse.cdt.core;bundle-version="5.11.0"
-Import-Package: org.eclipse.jface.preference;resolution:=optional,
- org.eclipse.jface.dialogs;resolution:=optional,
+Import-Package: org.eclipse.jface.dialogs;resolution:=optional,
+ org.eclipse.jface.preference;resolution:=optional,
+ org.eclipse.swt,
  org.eclipse.swt.widgets;resolution:=optional,
- org.eclipse.ui;ui.workbench="split";resolution:=optional,
+ org.eclipse.ui;ui.workbench=split;resolution:=optional,
  org.eclipse.ui.preferences;resolution:=optional
 Bundle-Activator: org.eclipse.mat.core.plugin.CorePlugin
 Bundle-ActivationPolicy: lazy

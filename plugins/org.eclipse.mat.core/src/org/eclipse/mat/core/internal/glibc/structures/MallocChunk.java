@@ -1,4 +1,4 @@
-package org.eclipse.mat.core.internal.glibstructures;
+package org.eclipse.mat.core.internal.glibc.structures;
 
 import org.eclipse.cdt.core.IAddress;
 
